@@ -7,15 +7,18 @@ use kajiya_backend::{
 };
 use kajiya_rg::{self as rg, SimpleRenderPass};
 
+// see `inclusive_prefix_scan.hlsl`
+const SEGMENT_SIZE: usize = 1024;
+pub const MIN_BUFFER_ELEMENTS: usize = SEGMENT_SIZE * SEGMENT_SIZE;
+
 pub fn inclusive_prefix_scan_u32_1m(rg: &mut rg::RenderGraph, input_buf: &mut rg::Handle<Buffer>) {
-    const SEGMENT_SIZE: usize = 1024;
 
     SimpleRenderPass::new_compute(
         rg.add_pass("_prefix scan 1"),
         "/shaders/prefix_scan/inclusive_prefix_scan.hlsl",
     )
-    .write(input_buf)
-    .dispatch([(SEGMENT_SIZE * SEGMENT_SIZE / 2) as u32, 1, 1]); // TODO: indirect
+        .write(input_buf)
+        .dispatch([(SEGMENT_SIZE * SEGMENT_SIZE / 2) as u32, 1, 1]); // TODO: indirect
 
     let mut segment_sum_buf = rg.create(BufferDesc::new_gpu_only(
         size_of::<u32>() * SEGMENT_SIZE,
@@ -25,15 +28,15 @@ pub fn inclusive_prefix_scan_u32_1m(rg: &mut rg::RenderGraph, input_buf: &mut rg
         rg.add_pass("_prefix scan 2"),
         "/shaders/prefix_scan/inclusive_prefix_scan_segments.hlsl",
     )
-    .read(input_buf)
-    .write(&mut segment_sum_buf)
-    .dispatch([(SEGMENT_SIZE / 2) as u32, 1, 1]); // TODO: indirect
+        .read(input_buf)
+        .write(&mut segment_sum_buf)
+        .dispatch([(SEGMENT_SIZE / 2) as u32, 1, 1]); // TODO: indirect
 
     SimpleRenderPass::new_compute(
         rg.add_pass("_prefix scan merge"),
         "/shaders/prefix_scan/inclusive_prefix_scan_merge.hlsl",
     )
-    .write(input_buf)
-    .read(&segment_sum_buf)
-    .dispatch([(SEGMENT_SIZE * SEGMENT_SIZE / 2) as u32, 1, 1]); // TODO: indirect
+        .write(input_buf)
+        .read(&segment_sum_buf)
+        .dispatch([(SEGMENT_SIZE * SEGMENT_SIZE / 2) as u32, 1, 1]); // TODO: indirect
 }

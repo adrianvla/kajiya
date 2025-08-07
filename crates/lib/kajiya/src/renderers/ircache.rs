@@ -19,7 +19,7 @@ use rg::BindMutToSimpleRenderPass;
 use rust_shaders_shared::frame_constants::{IrcacheCascadeConstants, IRCACHE_CASCADE_COUNT};
 use vk::BufferUsageFlags;
 
-use crate::renderers::prefix_scan::inclusive_prefix_scan_u32_1m;
+use crate::renderers::prefix_scan::{self, inclusive_prefix_scan_u32_1m};
 
 use super::wrc::WrcRenderState;
 
@@ -57,7 +57,7 @@ pub struct IrcacheRenderState {
 }
 
 impl<'rg, RgPipelineHandle> BindMutToSimpleRenderPass<'rg, RgPipelineHandle>
-    for IrcacheRenderState
+for IrcacheRenderState
 {
     fn bind_mut(
         &mut self,
@@ -86,7 +86,7 @@ fn temporal_storage_buffer(
         name,
         BufferDesc::new_gpu_only(size, BufferUsageFlags::STORAGE_BUFFER),
     )
-    .unwrap()
+        .unwrap()
 }
 
 pub struct IrcacheRenderer {
@@ -243,9 +243,9 @@ impl IrcacheRenderer {
                 rg.add_pass("clear ircache pool"),
                 "/shaders/ircache/clear_ircache_pool.hlsl",
             )
-            .write(&mut state.ircache_pool_buf)
-            .write(&mut state.ircache_life_buf)
-            .dispatch([MAX_ENTRIES as _, 1, 1]);
+                .write(&mut state.ircache_pool_buf)
+                .write(&mut state.ircache_life_buf)
+                .dispatch([MAX_ENTRIES as _, 1, 1]);
 
             self.initialized = true;
         } else {
@@ -253,18 +253,18 @@ impl IrcacheRenderer {
                 rg.add_pass("scroll cascades"),
                 "/shaders/ircache/scroll_cascades.hlsl",
             )
-            .read(&state.ircache_grid_meta_buf)
-            .write(&mut state.ircache_grid_meta_buf2)
-            .write(&mut state.ircache_entry_cell_buf)
-            .write(&mut state.ircache_irradiance_buf)
-            .write(&mut state.ircache_life_buf)
-            .write(&mut state.ircache_pool_buf)
-            .write(&mut state.ircache_meta_buf)
-            .dispatch([
-                IRCACHE_CASCADE_SIZE as u32,
-                IRCACHE_CASCADE_SIZE as u32,
-                (IRCACHE_CASCADE_SIZE * IRCACHE_CASCADE_COUNT) as u32,
-            ]);
+                .read(&state.ircache_grid_meta_buf)
+                .write(&mut state.ircache_grid_meta_buf2)
+                .write(&mut state.ircache_entry_cell_buf)
+                .write(&mut state.ircache_irradiance_buf)
+                .write(&mut state.ircache_life_buf)
+                .write(&mut state.ircache_pool_buf)
+                .write(&mut state.ircache_meta_buf)
+                .dispatch([
+                    IRCACHE_CASCADE_SIZE as u32,
+                    IRCACHE_CASCADE_SIZE as u32,
+                    (IRCACHE_CASCADE_SIZE * IRCACHE_CASCADE_COUNT) as u32,
+                ]);
 
             std::mem::swap(
                 &mut state.ircache_grid_meta_buf,
@@ -306,15 +306,15 @@ impl IrcacheRenderer {
                 rg.add_pass("_ircache dispatch args"),
                 "/shaders/ircache/prepare_age_dispatch_args.hlsl",
             )
-            .write(&mut state.ircache_meta_buf)
-            .write(&mut indirect_args_buf)
-            .dispatch([1, 1, 1]);
+                .write(&mut state.ircache_meta_buf)
+                .write(&mut indirect_args_buf)
+                .dispatch([1, 1, 1]);
 
             indirect_args_buf
         };
 
         let mut entry_occupancy_buf = rg.create(BufferDesc::new_gpu_only(
-            size_of::<u32>() * MAX_ENTRIES,
+            size_of::<u32>() * prefix_scan::MIN_BUFFER_ELEMENTS,
             vk::BufferUsageFlags::empty(),
         ));
 
@@ -322,17 +322,17 @@ impl IrcacheRenderer {
             rg.add_pass("age ircache entries"),
             "/shaders/ircache/age_ircache_entries.hlsl",
         )
-        .write(&mut state.ircache_meta_buf)
-        .write(&mut state.ircache_grid_meta_buf)
-        .write(&mut state.ircache_entry_cell_buf)
-        .write(&mut state.ircache_life_buf)
-        .write(&mut state.ircache_pool_buf)
-        .write(&mut state.ircache_spatial_buf)
-        .write(&mut state.ircache_reposition_proposal_buf)
-        .write(&mut state.ircache_reposition_proposal_count_buf)
-        .write(&mut state.ircache_irradiance_buf)
-        .write(&mut entry_occupancy_buf)
-        .dispatch_indirect(&indirect_args_buf, 0);
+            .write(&mut state.ircache_meta_buf)
+            .write(&mut state.ircache_grid_meta_buf)
+            .write(&mut state.ircache_entry_cell_buf)
+            .write(&mut state.ircache_life_buf)
+            .write(&mut state.ircache_pool_buf)
+            .write(&mut state.ircache_spatial_buf)
+            .write(&mut state.ircache_reposition_proposal_buf)
+            .write(&mut state.ircache_reposition_proposal_count_buf)
+            .write(&mut state.ircache_irradiance_buf)
+            .write(&mut entry_occupancy_buf)
+            .dispatch_indirect(&indirect_args_buf, 0);
 
         inclusive_prefix_scan_u32_1m(rg, &mut entry_occupancy_buf);
 
@@ -340,11 +340,11 @@ impl IrcacheRenderer {
             rg.add_pass("ircache compact"),
             "/shaders/ircache/ircache_compact_entries.hlsl",
         )
-        .write(&mut state.ircache_meta_buf)
-        .write(&mut state.ircache_life_buf)
-        .read(&entry_occupancy_buf)
-        .write(&mut state.ircache_entry_indirection_buf)
-        .dispatch_indirect(&indirect_args_buf, 0);
+            .write(&mut state.ircache_meta_buf)
+            .write(&mut state.ircache_life_buf)
+            .read(&entry_occupancy_buf)
+            .write(&mut state.ircache_entry_indirection_buf)
+            .dispatch_indirect(&indirect_args_buf, 0);
 
         state
     }
@@ -375,9 +375,9 @@ impl IrcacheRenderState {
                 rg.add_pass("_ircache dispatch args"),
                 "/shaders/ircache/prepare_trace_dispatch_args.hlsl",
             )
-            .read(&self.ircache_meta_buf)
-            .write(&mut indirect_args_buf)
-            .dispatch([1, 1, 1]);
+                .read(&self.ircache_meta_buf)
+                .write(&mut indirect_args_buf)
+                .dispatch([1, 1, 1]);
 
             indirect_args_buf
         };
@@ -386,12 +386,12 @@ impl IrcacheRenderState {
             rg.add_pass("ircache reset"),
             "/shaders/ircache/reset_entry.hlsl",
         )
-        .read(&self.ircache_life_buf)
-        .read(&self.ircache_meta_buf)
-        .read(&self.ircache_irradiance_buf)
-        .write(&mut self.ircache_aux_buf)
-        .read(&self.ircache_entry_indirection_buf)
-        .dispatch_indirect(&indirect_args_buf, 16 * 2);
+            .read(&self.ircache_life_buf)
+            .read(&self.ircache_meta_buf)
+            .read(&self.ircache_irradiance_buf)
+            .write(&mut self.ircache_aux_buf)
+            .read(&self.ircache_entry_indirection_buf)
+            .dispatch_indirect(&indirect_args_buf, 16 * 2);
 
         SimpleRenderPass::new_rt(
             rg.add_pass("ircache trace access"),
@@ -403,15 +403,15 @@ impl IrcacheRenderState {
             ],
             std::iter::empty(),
         )
-        .read(&self.ircache_spatial_buf)
-        .read(&self.ircache_life_buf)
-        .write_no_sync(&mut self.ircache_reposition_proposal_buf)
-        // Only read-access necessary, but if we use `write_no_sync`, we can overlap
-        // with the next pass. The next pass does not modify any data that this one reads.
-        .write_no_sync(&mut self.ircache_meta_buf)
-        .write_no_sync(&mut self.ircache_aux_buf)
-        .read(&self.ircache_entry_indirection_buf)
-        .trace_rays_indirect(tlas, &indirect_args_buf, 16 * 1);
+            .read(&self.ircache_spatial_buf)
+            .read(&self.ircache_life_buf)
+            .write_no_sync(&mut self.ircache_reposition_proposal_buf)
+            // Only read-access necessary, but if we use `write_no_sync`, we can overlap
+            // with the next pass. The next pass does not modify any data that this one reads.
+            .write_no_sync(&mut self.ircache_meta_buf)
+            .write_no_sync(&mut self.ircache_aux_buf)
+            .read(&self.ircache_entry_indirection_buf)
+            .trace_rays_indirect(tlas, &indirect_args_buf, 16 * 1);
 
         SimpleRenderPass::new_rt(
             rg.add_pass("ircache validate"),
@@ -422,27 +422,27 @@ impl IrcacheRenderState {
             ],
             [ShaderSource::hlsl("/shaders/rt/gbuffer.rchit.hlsl")],
         )
-        .read(&self.ircache_spatial_buf)
-        .read(sky_cube)
-        .write_no_sync(&mut self.ircache_grid_meta_buf)
-        .read(&self.ircache_life_buf)
-        .write_no_sync(&mut self.ircache_reposition_proposal_buf)
-        .write_no_sync(&mut self.ircache_reposition_proposal_count_buf)
-        .bind(wrc)
-        .write_no_sync(&mut self.ircache_meta_buf)
-        .write_no_sync(&mut self.ircache_aux_buf)
-        .write_no_sync(&mut self.ircache_pool_buf)
-        .read(&self.ircache_entry_indirection_buf)
-        .write_no_sync(&mut self.ircache_entry_cell_buf)
-        .raw_descriptor_set(1, bindless_descriptor_set)
-        .trace_rays(
-            tlas,
-            [
-                (MAX_ENTRIES * IRCACHE_VALIDATION_SAMPLES_PER_FRAME) as u32,
-                1,
-                1,
-            ],
-        );
+            .read(&self.ircache_spatial_buf)
+            .read(sky_cube)
+            .write_no_sync(&mut self.ircache_grid_meta_buf)
+            .read(&self.ircache_life_buf)
+            .write_no_sync(&mut self.ircache_reposition_proposal_buf)
+            .write_no_sync(&mut self.ircache_reposition_proposal_count_buf)
+            .bind(wrc)
+            .write_no_sync(&mut self.ircache_meta_buf)
+            .write_no_sync(&mut self.ircache_aux_buf)
+            .write_no_sync(&mut self.ircache_pool_buf)
+            .read(&self.ircache_entry_indirection_buf)
+            .write_no_sync(&mut self.ircache_entry_cell_buf)
+            .raw_descriptor_set(1, bindless_descriptor_set)
+            .trace_rays(
+                tlas,
+                [
+                    (MAX_ENTRIES * IRCACHE_VALIDATION_SAMPLES_PER_FRAME) as u32,
+                    1,
+                    1,
+                ],
+            );
         // TODO: seems rather broken on AMD
         //.trace_rays_indirect(tlas, &indirect_args_buf, 16 * 3);
 
@@ -455,23 +455,23 @@ impl IrcacheRenderState {
             ],
             [ShaderSource::hlsl("/shaders/rt/gbuffer.rchit.hlsl")],
         )
-        .read(&self.ircache_spatial_buf)
-        .read(sky_cube)
-        .write_no_sync(&mut self.ircache_grid_meta_buf)
-        .read(&self.ircache_life_buf)
-        .write_no_sync(&mut self.ircache_reposition_proposal_buf)
-        .write_no_sync(&mut self.ircache_reposition_proposal_count_buf)
-        .bind(wrc)
-        .write_no_sync(&mut self.ircache_meta_buf)
-        .write_no_sync(&mut self.ircache_aux_buf)
-        .write_no_sync(&mut self.ircache_pool_buf)
-        .read(&self.ircache_entry_indirection_buf)
-        .write_no_sync(&mut self.ircache_entry_cell_buf)
-        .raw_descriptor_set(1, bindless_descriptor_set)
-        .trace_rays(
-            tlas,
-            [(MAX_ENTRIES * IRCACHE_SAMPLES_PER_FRAME) as u32, 1, 1],
-        );
+            .read(&self.ircache_spatial_buf)
+            .read(sky_cube)
+            .write_no_sync(&mut self.ircache_grid_meta_buf)
+            .read(&self.ircache_life_buf)
+            .write_no_sync(&mut self.ircache_reposition_proposal_buf)
+            .write_no_sync(&mut self.ircache_reposition_proposal_count_buf)
+            .bind(wrc)
+            .write_no_sync(&mut self.ircache_meta_buf)
+            .write_no_sync(&mut self.ircache_aux_buf)
+            .write_no_sync(&mut self.ircache_pool_buf)
+            .read(&self.ircache_entry_indirection_buf)
+            .write_no_sync(&mut self.ircache_entry_cell_buf)
+            .raw_descriptor_set(1, bindless_descriptor_set)
+            .trace_rays(
+                tlas,
+                [(MAX_ENTRIES * IRCACHE_SAMPLES_PER_FRAME) as u32, 1, 1],
+            );
         // TODO: seems rather broken on AMD
         //.trace_rays_indirect(tlas, &indirect_args_buf, 16 * 0);
 
@@ -495,12 +495,12 @@ impl IrcacheRenderState {
             rg.add_pass("ircache sum"),
             "/shaders/ircache/sum_up_irradiance.hlsl",
         )
-        .read(&self.ircache_life_buf)
-        .write(&mut self.ircache_meta_buf)
-        .write(&mut self.ircache_irradiance_buf)
-        .write(&mut self.ircache_aux_buf)
-        .read(&self.ircache_entry_indirection_buf)
-        .dispatch_indirect(&pending.indirect_args_buf, 16 * 2);
+            .read(&self.ircache_life_buf)
+            .write(&mut self.ircache_meta_buf)
+            .write(&mut self.ircache_irradiance_buf)
+            .write(&mut self.ircache_aux_buf)
+            .read(&self.ircache_entry_indirection_buf)
+            .dispatch_indirect(&pending.indirect_args_buf, 16 * 2);
 
         self.pending_irradiance_sum = false;
     }
