@@ -16,6 +16,8 @@
 [![Build status](https://github.com/EmbarkStudios/kajiya/workflows/CI/badge.svg)](https://github.com/EmbarkStudios/kajiya/actions)
 </div>
 
+**Important:** This is a working fix of https://github.com/EmbarkStudios/kajiya/tree/main
+
 _This project is no longer maintained._
 
 It was a spare-time experiment by one guy who worked at Embark at the time (on non-rendering stuff). If you're looking to learn some artisanal hacks, this might be useful - just don't look too deep into the code 🐙
